@@ -1,0 +1,83 @@
+name: Compile SourceMod Plugin
+
+on:
+  push:
+    branches: [ main, master, dev ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        sm-version: ['1.11', '1.12']
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Setup SourcePawn Compiler
+      uses: rumblefrog/setup-sp@master
+      with:
+        version: ${{ matrix.sm-version }}
+    
+    - name: Compile server_monitor.sp
+      run: |
+        mkdir -p build/plugins
+        cd scripting
+        spcomp -i"include" server_monitor.sp -o../build/plugins/server_monitor.smx
+        cd ..
+        echo "Compilation completed for SourceMod ${{ matrix.sm-version }}"
+    
+    - name: Prepare release files
+      run: |
+        mkdir -p build/addons/sourcemod/plugins
+        mkdir -p build/addons/sourcemod/scripting
+        mkdir -p build/addons/sourcemod/scripting/include
+        mkdir -p build/cfg/sourcemod
+        
+        # Copy compiled plugins
+        cp build/plugins/*.smx build/addons/sourcemod/plugins/
+        
+        # Copy source files
+        cp scripting/server_monitor.sp build/addons/sourcemod/scripting/
+        
+        # Copy include files
+        cp scripting/include/server_monitor_api.inc build/addons/sourcemod/scripting/include/
+        
+        # Copy config
+        cp server_monitor.cfg build/cfg/sourcemod/
+        
+        # Copy documentation
+        cp README.md build/
+        cp LICENSE build/
+    
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: server-monitor-sm${{ matrix.sm-version }}
+        path: build/
+    
+    - name: Create release package
+      if: github.event_name == 'release'
+      run: |
+        cd build
+        zip -r ../server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip .
+        cd ..
+    
+    - name: Upload release asset
+      if: github.event_name == 'release'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ./server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip
+        asset_name: server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip
+        asset_content_type: application/zip
