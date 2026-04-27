@@ -59,7 +59,7 @@ jobs:
         cp LICENSE build/
     
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: server-monitor-sm${{ matrix.sm-version }}
         path: build/
@@ -73,11 +73,8 @@ jobs:
     
     - name: Upload release asset
       if: github.event_name == 'release'
-      uses: actions/upload-release-asset@v1
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ./server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ./server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip
-        asset_name: server-monitor-${{ github.event.release.tag_name }}-sm${{ matrix.sm-version }}.zip
-        asset_content_type: application/zip
